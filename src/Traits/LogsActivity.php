@@ -120,19 +120,16 @@ trait LogsActivity
             }
         }
         
-        // Fall back to primary key
-        return "#{$this->getKey()}";
-    }
-
-    /**
-     * Override this method in your model to define custom logging conditions
-     * 
-     * @param string $event The event being logged (created, updated, deleted, restored)
-     * @return bool Whether to log this activity
-     */
-    public function shouldLogActivity(string $event): bool
-    {
-        return true;
+        // Try to get the model class name for better context
+        $modelName = class_basename($this);
+        
+        // Fall back to primary key if available
+        if ($this->getKey()) {
+            return "{$modelName} #{$this->getKey()}";
+        }
+        
+        // Ultimate fallback if no key is available
+        return "{$modelName} (no identifier)";
     }
 
     /**
