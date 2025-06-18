@@ -18,6 +18,10 @@ A powerful Laravel package that logs user activities and system events, then sen
 - **🏷️ Auto-Model Tracking** - Simple trait-based automatic logging
 - **🔍 Event Filtering** - Enable/disable specific event types
 - **⚡ Performance Optimized** - Efficient database queries and caching
+- **🧪 Test Webhook** - Built-in webhook testing functionality
+- **🚀 Bootup Messages** - Optional application startup notifications
+- **🛡️ Error Handling** - Robust error handling and logging
+- **🔒 Security** - Automatic sensitive data masking
 
 ## 📋 Requirements
 
@@ -69,34 +73,23 @@ DISCORD_AVATAR_URL=https://your-app.com/logo.png
 ACTIVITY_LOG_DISCORD_ENABLED=true
 ACTIVITY_LOG_QUEUE=true
 ACTIVITY_LOG_QUEUE_CONNECTION=default
+ACTIVITY_LOG_QUEUE_NAME=discord-notifications
 ACTIVITY_LOG_LEVEL=info
+
+# Bootup Messages (Optional)
+ACTIVITY_LOG_SEND_BOOTUP=false
 ```
 
-### Advanced Configuration
+### Test Your Integration
 
-Customize the package behavior by editing `config/activity-log-discord.php`:
+After configuration, test your webhook integration:
 
-```php
-return [
-    'webhook_url' => env('DISCORD_WEBHOOK_URL'),
-    'bot_name' => env('DISCORD_BOT_NAME', 'Activity Logger'),
-    'enabled' => env('ACTIVITY_LOG_DISCORD_ENABLED', true),
-    'queue_notifications' => env('ACTIVITY_LOG_QUEUE', true),
-    
-    'events' => [
-        'user.login' => [
-            'enabled' => true,
-            'color' => 0x00ff00, // Green
-            'icon' => '🔐',
-        ],
-        'model.created' => [
-            'enabled' => true,
-            'color' => 0x00ff00, // Green
-            'icon' => '➕',
-        ],
-        // ... more events
-    ],
-];
+```bash
+# Basic test
+php artisan activity-log:test-webhook
+
+# Detailed test with configuration info
+php artisan activity-log:test-webhook --detailed
 ```
 
 ## 📖 Usage
@@ -132,6 +125,12 @@ ActivityLogger::logUserLogout($user);
 ActivityLogger::logModelCreated($post, $user);
 ActivityLogger::logModelUpdated($post, $changes, $user);
 ActivityLogger::logModelDeleted($post, $user);
+
+// System events
+ActivityLogger::logWebAppBootup();
+
+// Test webhook
+$success = ActivityLogger::testWebhook();
 ```
 
 ### Automatic Model Tracking
@@ -151,17 +150,35 @@ class Post extends Model
     use LogsActivity;
     
     // Specify which events to log
-    protected $logActivity = ['created', 'updated', 'deleted'];
+    protected $logActivity = ['created', 'updated', 'deleted', 'restored'];
     
     // Optional: Customize the display name
     public function getDisplayName(): string
     {
         return $this->title;
     }
+    
+    // Optional: Custom logging conditions
+    public function shouldLogActivity(string $event): bool
+    {
+        // Don't log updates if only timestamps changed
+        if ($event === 'updated') {
+            return count($this->getDirty()) > 2; // more than created_at and updated_at
+        }
+        
+        return true;
+    }
+    
+    // Optional: Additional properties for activity log
+    public function getActivityLogProperties(string $event): array
+    {
+        return [
+            'category' => $this->category,
+            'status' => $this->status,
+        ];
+    }
 }
 ```
-
-Now every time a `Post` is created, updated, or deleted, it will be automatically logged and sent to Discord!
 
 ### User Authentication Logging
 
@@ -196,26 +213,34 @@ class LoginController extends Controller
 }
 ```
 
-### Custom Event Types
+### Application Bootup Monitoring
 
-Create your own event types with custom formatting:
+Enable bootup messages to monitor when your application starts:
 
-```php
-// In a controller or service
-ActivityLogger::log(
-    'payment.failed',
-    "Payment failed for order #{$order->id}",
-    $order,
-    $user,
-    [
-        'amount' => $order->total,
-        'error_code' => $paymentError->code,
-        'gateway' => 'stripe'
-    ]
-);
+```env
+ACTIVITY_LOG_SEND_BOOTUP=true
 ```
 
+This will send a message to Discord whenever your web application boots up, useful for monitoring deployments and server restarts.
+
 ### Advanced Usage
+
+#### Testing Webhook Integration
+
+```php
+// In a controller or route
+use teaminfinitydev\ActivityLogDiscord\Services\DiscordWebhookService;
+
+Route::get('/test-discord', function (DiscordWebhookService $discord) {
+    $result = $discord->testWebhook();
+    
+    if ($result['success']) {
+        return response()->json(['message' => 'Webhook test successful!']);
+    }
+    
+    return response()->json(['error' => $result['message']], 500);
+});
+```
 
 #### Conditional Logging
 
@@ -239,20 +264,24 @@ ActivityLogger::log(
 );
 ```
 
-#### Custom Display Names
+#### Custom Event Configuration
 
-Implement `getDisplayName()` method in your models for better Discord formatting:
+Configure custom events in your config file:
 
 ```php
-class User extends Model
-{
-    use LogsActivity;
-    
-    public function getDisplayName(): string
-    {
-        return "{$this->name} ({$this->email})";
-    }
-}
+// config/activity-log-discord.php
+'events' => [
+    'payment.failed' => [
+        'enabled' => true,
+        'color' => 0xff0000, // Red
+        'icon' => '💳',
+    ],
+    'backup.completed' => [
+        'enabled' => true,
+        'color' => 0x00ff00, // Green
+        'icon' => '💾',
+    ],
+],
 ```
 
 ## 🎨 Discord Message Examples
@@ -268,12 +297,26 @@ Performed by: John Doe (john@example.com)
 Details:
 IP: 192.168.1.100
 User Agent: Mozilla/5.0...
+Timestamp: 2024-01-15 14:30:22
+```
+
+### Application Bootup Event
+```
+🚀 System Bootup
+Web application started successfully
+
+Details:
+Environment: production
+PHP Version: 8.2.0
+Laravel Version: 10.0.0
+Memory Usage: 32.5 MB
+Server Time: 2024-01-15 14:30:22
 ```
 
 ### Model Created Event
 ```
 ➕ Model Created
-Post was created
+Post 'My First Blog Post' was created
 
 Performed by: Jane Doe (jane@example.com)
 Subject: My First Blog Post
@@ -284,6 +327,33 @@ Status: Published
 ```
 
 ## 🧪 Testing
+
+### Command Line Testing
+
+```bash
+# Test webhook connection
+php artisan activity-log:test-webhook
+
+# Test with detailed configuration info
+php artisan activity-log:test-webhook --detailed
+```
+
+### Programmatic Testing
+
+```php
+use teaminfinitydev\ActivityLogDiscord\Facades\ActivityLogger;
+
+// Test the webhook
+$success = ActivityLogger::testWebhook();
+
+if ($success) {
+    echo "Webhook is working!";
+} else {
+    echo "Webhook test failed. Check logs for details.";
+}
+```
+
+### Package Tests
 
 Run the package tests:
 
@@ -351,6 +421,7 @@ For high-traffic applications, enable queue processing:
 // config/activity-log-discord.php
 'queue_notifications' => true,
 'queue_connection' => 'redis', // or your preferred connection
+'queue_name' => 'discord-notifications',
 ```
 
 Don't forget to run your queue workers:
@@ -358,67 +429,3 @@ Don't forget to run your queue workers:
 ```bash
 php artisan queue:work
 ```
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**Discord messages not sending:**
-- Verify your webhook URL is correct
-- Check that `ACTIVITY_LOG_DISCORD_ENABLED=true`
-- Ensure your Discord webhook has proper permissions
-
-**Queue jobs failing:**
-- Check your queue configuration
-- Verify queue workers are running
-- Check Laravel logs for detailed error messages
-
-**Database errors:**
-- Run `php artisan migrate` to ensure tables exist
-- Check database connection configuration
-
-### Debug Mode
-
-Enable debug logging by setting log level in your `.env`:
-
-```env
-ACTIVITY_LOG_LEVEL=debug
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-1. Clone the repository
-2. Install dependencies: `composer install`
-3. Run tests: `composer test`
-4. Check code style: `composer format`
-
-## 🔒 Security
-
-If you discover any security-related issues, please email security@codenexa.online instead of using the issue tracker.
-
-## 📝 Changelog
-
-Please see [CHANGELOG.md](CHANGELOG.md) for more information on what has changed recently.
-
-## 📄 License
-
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
-
-## 🙏 Credits
-
-- [Your Name](https://github.com/teaminfinitydev)
-- [All Contributors](../../contributors)
-
-## 💡 Support
-
-- **Documentation**: [Full documentation](https://teaminfinitydev.github.io/laravel-activity-log-discord)
-- **Issues**: [GitHub Issues](https://github.com/teaminfinitydev/laravel-activity-log-discord/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/teaminfinitydev/laravel-activity-log-discord/discussions)
-
----
-
-⭐ **Found this package useful? Give it a star on GitHub!** ⭐
