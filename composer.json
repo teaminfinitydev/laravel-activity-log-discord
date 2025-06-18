@@ -3,7 +3,7 @@
     "description": "Laravel package for activity logging with Discord webhook integration",
     "type": "library",
     "license": "MIT",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "authors": [
         {
             "name": "Chamika Samaraweera",
