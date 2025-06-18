@@ -421,48 +421,6 @@ Don't forget to run your queue workers:
 php artisan queue:work
 ```
 
-## 🧪 Local Development
-
-When developing this package locally, you can use it in your Laravel application before publishing to Packagist.
-
-### Setting Up Local Development
-
-1. **Add a Local Path Repository**
-
-   In your Laravel application's `composer.json`:
-
-   ```json
-   "repositories": [
-       {
-           "type": "path",
-           "url": "/path/to/your/package"
-       }
-   ]
-   ```
-
-2. **Require the Package**
-
-   ```bash
-   composer require teaminfinitydev/laravel-activity-log-discord:dev-main
-   ```
-
-3. **Publish Assets**
-
-   ```bash
-   php artisan vendor:publish --provider="teaminfinitydev\ActivityLogDiscord\ActivityLogDiscordServiceProvider"
-   ```
-
-4. **Configure Environment**
-
-   ```env
-   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url
-   ```
-
-5. **Test the Integration**
-
-   ```bash
-   php artisan activity-log:test-webhook --detailed
-   ```
 
 ## 📄 License
 
