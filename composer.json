@@ -1,0 +1,42 @@
+{
+    "name": "teaminfinitydev/laravel-activity-log-discord",
+    "description": "Laravel package for activity logging with Discord webhook integration",
+    "type": "library",
+    "license": "MIT",
+    "version": "1.0.0",
+    "authors": [
+        {
+            "name": "Chamika Samaraweera",
+            "email": "support@codenexa.online"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "illuminate/support": "*",
+        "guzzlehttp/guzzle": "^7.9"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5",
+        "orchestra/testbench": "^9.14",
+        "friendsofphp/php-cs-fixer": "^3.75"
+    },
+    "autoload": {
+        "psr-4": {
+            "teaminfinitydev\\ActivityLogDiscord\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "teaminfinitydev\\ActivityLogDiscord\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "teaminfinitydev\\ActivityLogDiscord\\ActivityLogDiscordServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
