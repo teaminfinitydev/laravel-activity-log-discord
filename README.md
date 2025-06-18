@@ -80,6 +80,40 @@ ACTIVITY_LOG_LEVEL=info
 ACTIVITY_LOG_SEND_BOOTUP=false
 ```
 
+### SSL Configuration
+
+By default, this package uses SSL verification when connecting to Discord webhooks. This is recommended for production environments.
+
+#### For Production Environments (Default):
+
+The package uses the following Guzzle configuration by default, which includes SSL verification:
+
+```php
+$this->client = new Client([
+    'timeout' => 30,
+    'connect_timeout' => 10,
+    'verify' => true, // SSL verification enabled
+]);
+```
+
+#### For Local Development or Troubleshooting:
+
+If you're having connection issues in a local development environment or behind certain corporate firewalls, you may need to disable SSL verification temporarily:
+
+1. Open `src/Services/DiscordWebhookService.php`
+2. Find the client initialization in the constructor
+3. Change the `verify` option to `false`:
+
+```php
+$this->client = new Client([
+    'timeout' => 30,
+    'connect_timeout' => 10,
+    'verify' => false, // SSL verification disabled
+]);
+```
+
+⚠️ **IMPORTANT SECURITY WARNING**: Only disable SSL verification in local development environments. Never disable SSL verification in production as it makes your application vulnerable to man-in-the-middle attacks.
+
 ### Test Your Integration
 
 After configuration, test your webhook integration:
@@ -223,66 +257,70 @@ ACTIVITY_LOG_SEND_BOOTUP=true
 
 This will send a message to Discord whenever your web application boots up, useful for monitoring deployments and server restarts.
 
-### Advanced Usage
+## 🧪 Troubleshooting
 
-#### Testing Webhook Integration
+### Connection Issues
 
-```php
-// In a controller or route
-use teaminfinitydev\ActivityLogDiscord\Services\DiscordWebhookService;
+If you're experiencing issues connecting to Discord webhooks, try the following solutions:
 
-Route::get('/test-discord', function (DiscordWebhookService $discord) {
-    $result = $discord->testWebhook();
-    
-    if ($result['success']) {
-        return response()->json(['message' => 'Webhook test successful!']);
-    }
-    
-    return response()->json(['error' => $result['message']], 500);
-});
+#### 1. Check Your Webhook URL
+
+Ensure your Discord webhook URL is correctly formatted and valid. It should look like:
+```
+https://discord.com/api/webhooks/[webhook_id]/[webhook_token]
 ```
 
-#### Conditional Logging
+#### 2. SSL Certificate Issues
+
+If you receive a "No response from Discord (connection error)" error, you might be having SSL certificate issues, especially in a local development environment.
+
+**Temporary Fix (Development Only):**
+
+Modify the `DiscordWebhookService.php` file to disable SSL verification:
 
 ```php
-// Only log in production
-if (app()->environment('production')) {
-    ActivityLogger::log('sensitive.action', 'Sensitive action performed');
+public function __construct(?string $webhookUrl, string $botName = 'Activity Logger', ?string $avatarUrl = null)
+{
+    $this->client = new Client([
+        'timeout' => 30,
+        'connect_timeout' => 10,
+        'verify' => false, // Disable SSL verification for testing
+    ]);
+    // Rest of the constructor...
 }
-
-// Log with additional context
-ActivityLogger::log(
-    'api.request',
-    'External API called',
-    null,
-    auth()->user(),
-    [
-        'endpoint' => '/api/users',
-        'response_time' => 150,
-        'status_code' => 200
-    ]
-);
 ```
 
-#### Custom Event Configuration
+**⚠️ WARNING:** Re-enable SSL verification (`verify => true`) before deploying to production!
 
-Configure custom events in your config file:
+#### 3. Firewall or Network Issues
+
+- Ensure your server/local environment can access external services
+- Check if your firewall allows outgoing connections to Discord (ports 443/80)
+- Try testing with a different internet connection
+
+#### 4. Detailed Debug Logging
+
+Enable detailed logging to see what's happening with the connection:
 
 ```php
-// config/activity-log-discord.php
-'events' => [
-    'payment.failed' => [
-        'enabled' => true,
-        'color' => 0xff0000, // Red
-        'icon' => '💳',
-    ],
-    'backup.completed' => [
-        'enabled' => true,
-        'color' => 0x00ff00, // Green
-        'icon' => '💾',
-    ],
-],
+try {
+    // In your DiscordWebhookService.php
+    Log::debug('Attempting to connect to Discord webhook', [
+        'webhook_url' => $this->maskWebhookUrl($this->webhookUrl),
+    ]);
+    
+    $response = $this->client->post($this->webhookUrl, [
+        // your existing options
+        'debug' => true, // Add this to see detailed request/response info
+    ]);
+} catch (RequestException $e) {
+    Log::error('Discord webhook error details', [
+        'request_exception_details' => method_exists($e, 'getHandlerContext') ? $e->getHandlerContext() : 'Not available',
+    ]);
+}
 ```
+
+Then check your Laravel logs for more information.
 
 ## 🎨 Discord Message Examples
 
@@ -324,53 +362,6 @@ Details:
 Title: My First Blog Post
 Category: Technology
 Status: Published
-```
-
-## 🧪 Testing
-
-### Command Line Testing
-
-```bash
-# Test webhook connection
-php artisan activity-log:test-webhook
-
-# Test with detailed configuration info
-php artisan activity-log:test-webhook --detailed
-```
-
-### Programmatic Testing
-
-```php
-use teaminfinitydev\ActivityLogDiscord\Facades\ActivityLogger;
-
-// Test the webhook
-$success = ActivityLogger::testWebhook();
-
-if ($success) {
-    echo "Webhook is working!";
-} else {
-    echo "Webhook test failed. Check logs for details.";
-}
-```
-
-### Package Tests
-
-Run the package tests:
-
-```bash
-composer test
-```
-
-Run tests with coverage:
-
-```bash
-composer test-coverage
-```
-
-Check code style:
-
-```bash
-composer format
 ```
 
 ## 📊 Database Schema
@@ -429,3 +420,50 @@ Don't forget to run your queue workers:
 ```bash
 php artisan queue:work
 ```
+
+## 🧪 Local Development
+
+When developing this package locally, you can use it in your Laravel application before publishing to Packagist.
+
+### Setting Up Local Development
+
+1. **Add a Local Path Repository**
+
+   In your Laravel application's `composer.json`:
+
+   ```json
+   "repositories": [
+       {
+           "type": "path",
+           "url": "/path/to/your/package"
+       }
+   ]
+   ```
+
+2. **Require the Package**
+
+   ```bash
+   composer require teaminfinitydev/laravel-activity-log-discord:dev-main
+   ```
+
+3. **Publish Assets**
+
+   ```bash
+   php artisan vendor:publish --provider="teaminfinitydev\ActivityLogDiscord\ActivityLogDiscordServiceProvider"
+   ```
+
+4. **Configure Environment**
+
+   ```env
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url
+   ```
+
+5. **Test the Integration**
+
+   ```bash
+   php artisan activity-log:test-webhook --detailed
+   ```
+
+## 📄 License
+
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
