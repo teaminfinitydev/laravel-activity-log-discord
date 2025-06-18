@@ -12,14 +12,23 @@ return new class extends Migration
             $table->id();
             $table->string('event_type');
             $table->text('description');
-            $table->nullableMorphs('subject');
-            $table->nullableMorphs('causer');
+            
+            // Create morph columns manually without automatic indexes
+            $table->string('subject_type')->nullable();
+            $table->unsignedBigInteger('subject_id')->nullable();
+            $table->string('causer_type')->nullable();
+            $table->unsignedBigInteger('causer_id')->nullable();
+            
             $table->json('properties')->nullable();
             $table->boolean('discord_sent')->default(false);
             $table->timestamp('discord_sent_at')->nullable();
             $table->timestamps();
 
-            $table->index(['event_type', 'created_at']);
+            // Create custom indexes
+            $table->index(['event_type', 'created_at'], 'activity_logs_event_created_index');
+            $table->index(['subject_type', 'subject_id'], 'activity_logs_subject_index');
+            $table->index(['causer_type', 'causer_id'], 'activity_logs_causer_index');
+            $table->index('discord_sent', 'activity_logs_discord_sent_index');
         });
     }
 
