@@ -20,8 +20,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['event_type', 'created_at']);
-            $table->index(['subject_type', 'subject_id']);
-            $table->index(['causer_type', 'causer_id']);
         });
     }
 
