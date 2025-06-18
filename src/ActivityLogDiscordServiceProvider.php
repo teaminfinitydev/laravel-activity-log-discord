@@ -64,4 +64,15 @@ class ActivityLogDiscordServiceProvider extends ServiceProvider
             $this->app->booted(function () {
                 try {
                     $activityLogger = app(ActivityLoggerService::class);
-                    $act
+                    $activityLogger->logWebAppBootup();
+                } catch (\Exception $e) {
+                    // Log error but don't crash the application
+                    \Log::error('Failed to send bootup message to Discord', [
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            });
+        }
+    }
+}
