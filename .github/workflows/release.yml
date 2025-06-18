@@ -1,0 +1,44 @@
+# .github/workflows/release.yml
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.2
+        extensions: dom, curl, libxml, mbstring, zip
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-dev
+
+    - name: Run tests
+      run: vendor/bin/phpunit
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Notify Packagist
+      run: |
+        curl -XPOST -H'content-type:application/json' \
+        'https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}' \
+        -d'{"repository":{"url":"https://github.com/${{ github.repository }}"}}'
