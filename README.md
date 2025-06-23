@@ -1,4 +1,4 @@
-# Laravel Activity Log Discord
+ # Laravel Activity Log Discord
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/teaminfinitydev/laravel-activity-log-discord.svg?style=flat-square)](https://packagist.org/packages/teaminfinitydev/laravel-activity-log-discord)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/teaminfinitydev/laravel-activity-log-discord/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/teaminfinitydev/laravel-activity-log-discord/actions?query=workflow%3Atests+branch%3Amain)
