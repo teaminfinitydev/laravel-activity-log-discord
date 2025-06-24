@@ -143,6 +143,7 @@ class TestWebhookCommand extends Command
             0xff9900 => 'Orange',
             0x9900ff => 'Purple',
             0x00ffff => 'Cyan',
+            0xffc500 => 'LightYellow',
         ];
 
         return $colors[$color] ?? sprintf('#%06X', $color);
